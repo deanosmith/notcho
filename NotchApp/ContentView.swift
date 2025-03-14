@@ -74,15 +74,6 @@ struct ContentView: View {
     
     func setupNotificationObservers() {
         let nc = DistributedNotificationCenter.default()
-        
-        nc.addObserver(
-            forName: NSNotification.Name("com.apple.Music.playerInfo"),
-            object: nil,
-            queue: .main
-        ) { notification in
-            self.handleMusicNotification(notification)
-        }
-        
         nc.addObserver(
             forName: NSNotification.Name("com.spotify.client.PlaybackStateChanged"),
             object: nil,
@@ -94,15 +85,12 @@ struct ContentView: View {
     
     func startPollingForMusicInfo() {
         timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
-            self.checkCurrentlyPlayingMusic()
+            self.checkSpotifyStatus()
         }
     }
     
     func checkCurrentlyPlayingMusic() {
-        // Reset state before checking
-        self.currentMusicApp = nil
-                
-        // Check Spotify if Apple Music is not playing
+        self.currentMusicApp = nil // Reset before check
         checkSpotifyStatus()
     }
     
@@ -118,7 +106,6 @@ struct ContentView: View {
                 if isPlaying then
                     set trackName to name of current track
                     set artistName to artist of current track
-                    set isPlaying to true
                     return {trackName:trackName, artistName:artistName, isPlaying:isPlaying}
                 else
                     return {trackName:"", artistName:"", isPlaying:false}
@@ -140,28 +127,19 @@ struct ContentView: View {
                     let trackNameStr = trackNameDesc.stringValue ?? ""
                     if !trackNameStr.isEmpty {
                         self.trackName = trackNameStr
-                        
-                        if let artistNameDesc = result.value(forKey: "artistName") as? NSAppleEventDescriptor {
-                            self.artistName = artistNameDesc.stringValue ?? "Unknown Artist"
-                        }
-                        
-                        if let isPlayingDesc = result.value(forKey: "isPlaying") as? NSAppleEventDescriptor {
-                            self.isPlaying = isPlayingDesc.booleanValue
-                            if self.isPlaying {
-                                self.currentMusicApp = "Spotify"
-                            } else {
-                                self.currentMusicApp = nil // Reset if not playing
-                            }
-                        }
+                        self.artistName = (result.value(forKey: "artistName") as? NSAppleEventDescriptor)?.stringValue ?? "Unknown Artist"
+                        self.isPlaying = (result.value(forKey: "isPlaying") as? NSAppleEventDescriptor)?.booleanValue ?? false
+                        self.currentMusicApp = self.isPlaying ? "Spotify" : nil
                     } else {
-                        self.currentMusicApp = nil // Reset if no track is playing
+                        self.currentMusicApp = nil
                         self.trackName = "Nothing Playing"
                         self.artistName = ""
                         self.thumbnail = nil
                     }
                 }
             } else {
-                self.currentMusicApp = nil // Reset on error
+                self.currentMusicApp = nil
+                //print("AppleScript Error: \(errorInfo ?? "Unknown error")")
             }
         }
     }
@@ -208,10 +186,13 @@ struct ContentView: View {
     }
     
     func togglePlayback() {
-        guard let appName = currentMusicApp else { return }
+        guard let appName = currentMusicApp, appName == "Spotify" else {
+            print("Spotify not detected")
+            return
+        }
         
         let scriptSource = """
-        tell application "\(appName)"
+        tell application "Spotify"
             playpause
         end tell
         """
@@ -220,23 +201,27 @@ struct ContentView: View {
             var errorInfo: NSDictionary? = nil
             script.executeAndReturnError(&errorInfo)
             
-            if errorInfo == nil {
-                isPlaying.toggle()
+            if let error = errorInfo {
+                print("Toggle Playback Error: \(error)")
+                self.currentMusicApp = nil
+                self.isPlaying = false
+                self.trackName = "Nothing Playing"
+                self.artistName = ""
+                self.thumbnail = nil
             } else {
-                currentMusicApp = nil
-                isPlaying = false
-                trackName = "Nothing Playing"
-                artistName = ""
-                thumbnail = nil
+                self.isPlaying.toggle()
             }
         }
     }
     
     func previousTrack() {
-        guard let appName = currentMusicApp else { return }
+        guard let appName = currentMusicApp, appName == "Spotify" else {
+            print("Spotify not detected")
+            return
+        }
         
         let scriptSource = """
-        tell application "\(appName)"
+        tell application "Spotify"
             previous track
         end tell
         """
@@ -244,14 +229,20 @@ struct ContentView: View {
         if let script = NSAppleScript(source: scriptSource) {
             var errorInfo: NSDictionary? = nil
             script.executeAndReturnError(&errorInfo)
+            if let error = errorInfo {
+                print("Previous Track Error: \(error)")
+            }
         }
     }
     
     func nextTrack() {
-        guard let appName = currentMusicApp else { return }
+        guard let appName = currentMusicApp, appName == "Spotify" else {
+            print("Spotify not detected")
+            return
+        }
         
         let scriptSource = """
-        tell application "\(appName)"
+        tell application "Spotify"
             next track
         end tell
         """
@@ -259,12 +250,15 @@ struct ContentView: View {
         if let script = NSAppleScript(source: scriptSource) {
             var errorInfo: NSDictionary? = nil
             script.executeAndReturnError(&errorInfo)
+            if let error = errorInfo {
+                print("Next Track Error: \(error)")
+            }
         }
     }
-}
-
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
+    
+    struct ContentView_Previews: PreviewProvider {
+        static var previews: some View {
+            ContentView()
+        }
     }
 }
