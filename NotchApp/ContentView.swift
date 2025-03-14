@@ -93,65 +93,17 @@ struct ContentView: View {
     }
     
     func startPollingForMusicInfo() {
-        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
             self.checkCurrentlyPlayingMusic()
         }
     }
     
     func checkCurrentlyPlayingMusic() {
-        checkAppleMusicStatus()
+        // Reset state before checking
+        self.currentMusicApp = nil
+                
+        // Check Spotify if Apple Music is not playing
         checkSpotifyStatus()
-    }
-    
-    func checkAppleMusicStatus() {
-        let appleScript = """
-        tell application "System Events"
-            set musicRunning to (name of processes) contains "Music"
-        end tell
-        
-        if musicRunning then
-            tell application "Music"
-                set isPlaying to player state is playing
-                if isPlaying then
-                    set trackName to name of current track
-                    set artistName to artist of current track
-                    set isPlaying to true
-                    return {trackName:trackName, artistName:artistName, isPlaying:isPlaying}
-                else
-                    return {trackName:"", artistName:"", isPlaying:false}
-                end if
-            end tell
-        else
-            return {trackName:"", artistName:"", isPlaying:false}
-        end if
-        """
-        
-        let script = NSAppleScript(source: appleScript)
-        var errorInfo: NSDictionary? = nil
-        
-        if let script = script {
-            let result = script.executeAndReturnError(&errorInfo)
-            
-            if errorInfo == nil {
-                if let trackNameDesc = result.value(forKey: "trackName") as? NSAppleEventDescriptor {
-                    let trackNameStr = trackNameDesc.stringValue ?? ""
-                    if !trackNameStr.isEmpty {
-                        self.trackName = trackNameStr
-                        
-                        if let artistNameDesc = result.value(forKey: "artistName") as? NSAppleEventDescriptor {
-                            self.artistName = artistNameDesc.stringValue ?? "Unknown Artist"
-                        }
-                        
-                        if let isPlayingDesc = result.value(forKey: "isPlaying") as? NSAppleEventDescriptor {
-                            self.isPlaying = isPlayingDesc.booleanValue
-                            if self.isPlaying {
-                                self.currentMusicApp = "Spotify"
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
     
     func checkSpotifyStatus() {
@@ -197,10 +149,19 @@ struct ContentView: View {
                             self.isPlaying = isPlayingDesc.booleanValue
                             if self.isPlaying {
                                 self.currentMusicApp = "Spotify"
+                            } else {
+                                self.currentMusicApp = nil // Reset if not playing
                             }
                         }
+                    } else {
+                        self.currentMusicApp = nil // Reset if no track is playing
+                        self.trackName = "Nothing Playing"
+                        self.artistName = ""
+                        self.thumbnail = nil
                     }
                 }
+            } else {
+                self.currentMusicApp = nil // Reset on error
             }
         }
     }

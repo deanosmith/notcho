@@ -25,7 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let menuBarHeight = NSStatusBar.system.thickness
             let yPos = screen.frame.maxY - menuBarHeight
             let xPos = (screen.frame.width - 400) / 2
-            window.setFrame(NSRect(x: xPos, y: yPos, width: 400, height: 40), display: true)
+            window.setFrame(NSRect(x: xPos, y: yPos, width: 400, height: 22), display: true)
             window.collectionBehavior = [.stationary, .canJoinAllSpaces, .ignoresCycle]
         }
         
