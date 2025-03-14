@@ -15,7 +15,7 @@ struct ContentView: View {
                 Image(nsImage: thumbnail)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 30, height: 30)
+                    .frame(width: 3, height: 3)
                     .cornerRadius(8)
             } else {
                 RoundedRectangle(cornerRadius: 8)
@@ -62,6 +62,7 @@ struct ContentView: View {
         .padding(.horizontal, 10)
         .frame(height: 70)
         .background(Color.black.opacity(1))
+        .clipShape(RoundedRectangle(cornerRadius: 12)) // Added to round the corners
         .onAppear {
             setupNotificationObservers()
             startPollingForMusicInfo()
