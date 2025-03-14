@@ -16,11 +16,11 @@ struct ContentView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 3, height: 3)
-                    .cornerRadius(8)
+                    .cornerRadius(4)
             } else {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.gray.opacity(1))
-                    .frame(width: 50, height: 50)
+                    .frame(width: 30, height: 30)
             }
             
             VStack(alignment: .leading, spacing: 4) {
@@ -60,9 +60,9 @@ struct ContentView: View {
             }
         }
         .padding(.horizontal, 10)
-        .frame(height: 70)
+        .frame(height: 40)
         .background(Color.black.opacity(1))
-        .clipShape(RoundedRectangle(cornerRadius: 12)) // Added to round the corners
+        .clipShape(RoundedRectangle(cornerRadius: 8))
         .onAppear {
             setupNotificationObservers()
             startPollingForMusicInfo()
