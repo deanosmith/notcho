@@ -89,11 +89,6 @@ struct ContentView: View {
         }
     }
     
-    func checkCurrentlyPlayingMusic() {
-        self.currentMusicApp = nil // Reset before check
-        checkSpotifyStatus()
-    }
-    
     func checkSpotifyStatus() {
         let appleScript = """
         tell application "System Events"
