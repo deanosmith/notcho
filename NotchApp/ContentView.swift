@@ -17,91 +17,74 @@ struct ContentView: View {
     @State private var thumbnail: NSImage? = nil
     @State private var currentMusicApp: String? = nil
     @State private var timer: Timer? = nil
-    @State private var isPlayPauseButtonEnabled = true
     @State private var useSeekMode = UserDefaults.standard.bool(forKey: "useSeekMode") ?? false
     
     private let nowPlayingManager = NowPlayingManager()
     
+    // Dynamic width based on Seek Mode
+    private var notchWidth: CGFloat {
+        useSeekMode ? 395 : 345 // Wider when Seek Mode is on, narrower when off
+    }
+    
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 10) {
-                if let thumbnail = thumbnail {
-                    Image(nsImage: thumbnail)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 30, height: 30)
-                        .cornerRadius(4)
-                } else {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.gray.opacity(1))
-                        .frame(width: 30, height: 30)
-                }
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(trackName)
-                        .font(.system(size: 12, weight: .medium))
-                        .lineLimit(1)
-                    
-                    Text(artistName)
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-                
-                Spacer()
-                
-                HStack(spacing: 12) {
+        HStack(spacing: 8) {
+            // Thumbnail
+            if let thumbnail = thumbnail {
+                Image(nsImage: thumbnail)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 30, height: 30)
+                    .cornerRadius(6)
+            } else {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.gray.opacity(1))
+                    .frame(width: 30, height: 30)
+            }
+            
+            Spacer()
+            
+            // Playback controls (always show play/pause, show rewind/skip if in Seek Mode)
+            HStack(spacing: 12) {
+                if useSeekMode {
                     Button(action: previousOrRewind) {
-                        Image(systemName: useSeekMode ? "gobackward.15" : "backward.fill")
-                            .font(.system(size: 12))
+                        Image(systemName: "gobackward.15")
+                            .font(.system(size: 18))
                     }
                     .buttonStyle(PlainButtonStyle())
                     .disabled(currentMusicApp == nil)
-                    
-                    Button(action: togglePlayback) {
-                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 14))
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .disabled(currentMusicApp == nil || !isPlayPauseButtonEnabled)
-                    
+                }
+                
+                Button(action: togglePlayback) {
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 22))
+                }
+                .buttonStyle(PlainButtonStyle())
+                .disabled(currentMusicApp == nil)
+                
+                if useSeekMode {
                     Button(action: nextOrFastForward) {
-                        Image(systemName: useSeekMode ? "goforward.15" : "forward.fill")
-                            .font(.system(size: 12))
+                        Image(systemName: "goforward.15")
+                            .font(.system(size: 18))
                     }
                     .buttonStyle(PlainButtonStyle())
                     .disabled(currentMusicApp == nil)
                 }
             }
-            
-            Toggle("Seek Mode", isOn: $useSeekMode)
-                .font(.system(size: 10))
-                .onChange(of: useSeekMode) { newValue in
-                    UserDefaults.standard.set(newValue, forKey: "useSeekMode")
-                }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background(Color.black.opacity(1))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .frame(width: notchWidth) // Dynamic width
+        .background(Color.black.opacity(0.8))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .onTapGesture {
+            useSeekMode.toggle()
+            UserDefaults.standard.set(useSeekMode, forKey: "useSeekMode")
+        }
         .onAppear {
-            setupNotificationObservers()
             startPollingForMusicInfo()
         }
         .onDisappear {
             timer?.invalidate()
-        }
-    }
-    
-    // Setup Spotify notification observers
-    func setupNotificationObservers() {
-        let nc = DistributedNotificationCenter.default()
-        nc.addObserver(
-            forName: NSNotification.Name("com.spotify.client.PlaybackStateChanged"),
-            object: nil,
-            queue: .main
-        ) { notification in
-            self.handleSpotifyNotification(notification)
         }
     }
     
@@ -126,7 +109,7 @@ struct ContentView: View {
                 let playbackRate = info["kMRMediaRemoteNowPlayingInfoPlaybackRate"] as? Double ?? 0.0
                 self.isPlaying = playbackRate > 0.0
                 
-                // Update track and artist info
+                // Update track and artist info (still needed for internal state)
                 if let title = info["kMRMediaRemoteNowPlayingInfoTitle"] as? String, !title.isEmpty {
                     // Only update thumbnail if the track has changed
                     let trackChanged = self.trackName != title
@@ -146,14 +129,6 @@ struct ContentView: View {
         }
     }
     
-    // Handle Spotify notification for logging metadata
-    func handleSpotifyNotification(_ notification: Notification) {
-        guard let userInfo = notification.userInfo else { return }
-        
-        // Log Spotify notification metadata
-        print("Spotify Notification Metadata: \(userInfo)")
-    }
-    
     // Reset UI to idle state
     func resetToIdleState() {
         self.isPlaying = false
@@ -167,78 +142,54 @@ struct ContentView: View {
     func togglePlayback() {
         guard currentMusicApp != nil else { return }
         
-        // Disable the button temporarily to prevent rapid toggling
-        isPlayPauseButtonEnabled = false
         nowPlayingManager.sendMediaCommand(command: isPlaying ? .pause : .play) { success in
             if !success {
                 print("Failed to toggle playback for \(self.currentMusicApp ?? "unknown app")")
             }
-            // Re-enable the button after a short delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.isPlayPauseButtonEnabled = true
-            }
         }
     }
     
-    // Previous or Rewind
+    // Previous or Rewind (only used in Seek Mode)
     func previousOrRewind() {
         guard let currentMusicApp = currentMusicApp else { return }
         
-        if useSeekMode {
-            // Rewind: 15 seconds for Spotify, 5 seconds for Chrome
-            let seconds = currentMusicApp == "com.spotify.client" ? -15.0 : -5.0
-            if currentMusicApp.contains("com.google.Chrome") {
-                // Use AppleScript for Chrome
-                nowPlayingManager.seekInChrome(seconds: seconds) { success in
-                    if !success {
-                        print("Failed to rewind in Chrome")
-                    }
-                }
-            } else {
-                // Use MediaRemote for Spotify
-                nowPlayingManager.seekBy(seconds: seconds) { success in
-                    if !success {
-                        print("Failed to rewind for \(currentMusicApp)")
-                    }
+        // Rewind: 15 seconds for Spotify, 5 seconds for Chrome
+        let seconds = currentMusicApp == "com.spotify.client" ? -15.0 : -5.0
+        if currentMusicApp.contains("com.google.Chrome") {
+            // Use AppleScript for Chrome
+            nowPlayingManager.seekInChrome(seconds: seconds) { success in
+                if !success {
+                    print("Failed to rewind in Chrome")
                 }
             }
         } else {
-            // Previous track
-            nowPlayingManager.sendMediaCommand(command: .previousTrack) { success in
+            // Use MediaRemote for Spotify
+            nowPlayingManager.seekBy(seconds: seconds) { success in
                 if !success {
-                    print("Failed to go to previous track for \(currentMusicApp)")
+                    print("Failed to rewind for \(currentMusicApp)")
                 }
             }
         }
     }
     
-    // Next or Fast-Forward
+    // Next or Fast-Forward (only used in Seek Mode)
     func nextOrFastForward() {
         guard let currentMusicApp = currentMusicApp else { return }
         
-        if useSeekMode {
-            // Fast-forward: 15 seconds for Spotify, 5 seconds for Chrome
-            let seconds = currentMusicApp == "com.spotify.client" ? 15.0 : 5.0
-            if currentMusicApp.contains("com.google.Chrome") {
-                // Use AppleScript for Chrome
-                nowPlayingManager.seekInChrome(seconds: seconds) { success in
-                    if !success {
-                        print("Failed to fast-forward in Chrome")
-                    }
-                }
-            } else {
-                // Use MediaRemote for Spotify
-                nowPlayingManager.seekBy(seconds: seconds) { success in
-                    if !success {
-                        print("Failed to fast-forward for \(currentMusicApp)")
-                    }
+        // Fast-forward: 15 seconds for Spotify, 5 seconds for Chrome
+        let seconds = currentMusicApp == "com.spotify.client" ? 15.0 : 5.0
+        if currentMusicApp.contains("com.google.Chrome") {
+            // Use AppleScript for Chrome
+            nowPlayingManager.seekInChrome(seconds: seconds) { success in
+                if !success {
+                    print("Failed to fast-forward in Chrome")
                 }
             }
         } else {
-            // Next track
-            nowPlayingManager.sendMediaCommand(command: .nextTrack) { success in
+            // Use MediaRemote for Spotify
+            nowPlayingManager.seekBy(seconds: seconds) { success in
                 if !success {
-                    print("Failed to go to next track for \(currentMusicApp)")
+                    print("Failed to fast-forward for \(currentMusicApp)")
                 }
             }
         }
