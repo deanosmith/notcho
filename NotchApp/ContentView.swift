@@ -9,13 +9,15 @@ struct ContentView: View {
     @State private var currentMusicApp: String? = nil
     @State private var timer: Timer? = nil
     
+    private let nowPlayingManager = NowPlayingManager()
+    
     var body: some View {
         HStack(spacing: 10) {
             if let thumbnail = thumbnail {
                 Image(nsImage: thumbnail)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 3, height: 3)
+                    .frame(width: 30, height: 30) // Adjusted from 3x3 for visibility
                     .cornerRadius(4)
             } else {
                 RoundedRectangle(cornerRadius: 8)
@@ -64,7 +66,6 @@ struct ContentView: View {
         .background(Color.black.opacity(1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .onAppear {
-            setupNotificationObservers()
             startPollingForMusicInfo()
         }
         .onDisappear {
@@ -72,188 +73,110 @@ struct ContentView: View {
         }
     }
     
-    func setupNotificationObservers() {
-        let nc = DistributedNotificationCenter.default()
-        nc.addObserver(
-            forName: NSNotification.Name("com.spotify.client.PlaybackStateChanged"),
-            object: nil,
-            queue: .main
-        ) { notification in
-            self.handleSpotifyNotification(notification)
-        }
-    }
-    
+    // Start polling system-wide media info
     func startPollingForMusicInfo() {
-        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
-            self.checkSpotifyStatus()
+        updateNowPlayingInfo() // Initial fetch
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            self.updateNowPlayingInfo()
         }
     }
     
-    func checkSpotifyStatus() {
-        let appleScript = """
-        tell application "System Events"
-            set spotifyRunning to (name of processes) contains "Spotify"
-        end tell
-        
-        if spotifyRunning then
-            tell application "Spotify"
-                set isPlaying to player state is playing
-                if isPlaying then
-                    set trackName to name of current track
-                    set artistName to artist of current track
-                    return {trackName:trackName, artistName:artistName, isPlaying:isPlaying}
-                else
-                    return {trackName:"", artistName:"", isPlaying:false}
-                end if
-            end tell
-        else
-            return {trackName:"", artistName:"", isPlaying:false}
-        end if
-        """
-        
-        let script = NSAppleScript(source: appleScript)
-        var errorInfo: NSDictionary? = nil
-        
-        if let script = script {
-            let result = script.executeAndReturnError(&errorInfo)
-            
-            if errorInfo == nil {
-                if let trackNameDesc = result.value(forKey: "trackName") as? NSAppleEventDescriptor {
-                    let trackNameStr = trackNameDesc.stringValue ?? ""
-                    if !trackNameStr.isEmpty {
-                        self.trackName = trackNameStr
-                        self.artistName = (result.value(forKey: "artistName") as? NSAppleEventDescriptor)?.stringValue ?? "Unknown Artist"
-                        self.isPlaying = (result.value(forKey: "isPlaying") as? NSAppleEventDescriptor)?.booleanValue ?? false
-                        self.currentMusicApp = self.isPlaying ? "Spotify" : nil
+    // Fetch and update media info using MediaRemote
+    func updateNowPlayingInfo() {
+        nowPlayingManager.fetchNowPlayingInfo { info, bundleID in
+            DispatchQueue.main.async {
+                guard let info = info else {
+                    self.resetToIdleState()
+                    return
+                }
+                
+                // Update playback state
+                let playbackRate = info["kMRMediaRemoteNowPlayingInfoPlaybackRate"] as? Double ?? 0.0
+                self.isPlaying = playbackRate > 0.0
+                
+                // Update track and artist info
+                if let title = info["kMRMediaRemoteNowPlayingInfoTitle"] as? String, !title.isEmpty {
+                    self.trackName = title
+                    self.artistName = info["kMRMediaRemoteNowPlayingInfoArtist"] as? String ?? "Unknown Artist"
+                    self.currentMusicApp = bundleID ?? "Unknown App"
+                    
+                    // Update artwork if available
+                    if let artworkData = info["kMRMediaRemoteNowPlayingInfoArtworkData"] as? Data {
+                        self.thumbnail = NSImage(data: artworkData)
                     } else {
-                        self.currentMusicApp = nil
-                        self.trackName = "Nothing Playing"
-                        self.artistName = ""
                         self.thumbnail = nil
                     }
+                } else {
+                    self.resetToIdleState()
                 }
-            } else {
-                self.currentMusicApp = nil
-                //print("AppleScript Error: \(errorInfo ?? "Unknown error")")
             }
         }
     }
     
-    func handleMusicNotification(_ notification: Notification) {
-        guard let userInfo = notification.userInfo else { return }
-        
-        currentMusicApp = "Music"
-        
-        if let playerState = userInfo["Player State"] as? String {
-            isPlaying = playerState == "Playing"
-        }
-        
-        trackName = userInfo["Name"] as? String ?? "Unknown Track"
-        artistName = userInfo["Artist"] as? String ?? "Unknown Artist"
-        
-        if let artworkData = userInfo["Artwork"] as? Data {
-            thumbnail = NSImage(data: artworkData)
-        }
+    // Reset UI to idle state
+    func resetToIdleState() {
+        self.isPlaying = false
+        self.trackName = "Nothing Playing"
+        self.artistName = ""
+        self.thumbnail = nil
+        self.currentMusicApp = nil
     }
     
-    func handleSpotifyNotification(_ notification: Notification) {
-        guard let userInfo = notification.userInfo else { return }
-        
-        currentMusicApp = "Spotify"
-        
-        if let playerState = userInfo["Player State"] as? String {
-            isPlaying = playerState == "Playing"
-        }
-        
-        trackName = userInfo["Name"] as? String ?? "Unknown Track"
-        artistName = userInfo["Artist"] as? String ?? "Unknown Artist"
-        
-        if let artworkURLString = userInfo["Artwork URL"] as? String,
-           let url = URL(string: artworkURLString) {
-            URLSession.shared.dataTask(with: url) { data, _, _ in
-                if let data = data, let image = NSImage(data: data) {
-                    DispatchQueue.main.async {
-                        self.thumbnail = image
-                    }
-                }
-            }.resume()
-        }
-    }
-    
+    // Placeholder playback controls (to be implemented later)
     func togglePlayback() {
-        guard let appName = currentMusicApp, appName == "Spotify" else {
-            print("Spotify not detected")
-            return
-        }
-        
-        let scriptSource = """
-        tell application "Spotify"
-            playpause
-        end tell
-        """
-        
-        if let script = NSAppleScript(source: scriptSource) {
-            var errorInfo: NSDictionary? = nil
-            script.executeAndReturnError(&errorInfo)
-            
-            if let error = errorInfo {
-                print("Toggle Playback Error: \(error)")
-                self.currentMusicApp = nil
-                self.isPlaying = false
-                self.trackName = "Nothing Playing"
-                self.artistName = ""
-                self.thumbnail = nil
-            } else {
-                self.isPlaying.toggle()
-            }
-        }
+        guard currentMusicApp != nil else { return }
+        // TODO: Implement system-wide playback control
+        print("Toggle playback not yet implemented for app: \(currentMusicApp ?? "nil")")
     }
     
     func previousTrack() {
-        guard let appName = currentMusicApp, appName == "Spotify" else {
-            print("Spotify not detected")
-            return
-        }
-        
-        let scriptSource = """
-        tell application "Spotify"
-            previous track
-        end tell
-        """
-        
-        if let script = NSAppleScript(source: scriptSource) {
-            var errorInfo: NSDictionary? = nil
-            script.executeAndReturnError(&errorInfo)
-            if let error = errorInfo {
-                print("Previous Track Error: \(error)")
-            }
-        }
+        guard currentMusicApp != nil else { return }
+        // TODO: Implement system-wide previous track
+        print("Previous track not yet implemented for app: \(currentMusicApp ?? "nil")")
     }
     
     func nextTrack() {
-        guard let appName = currentMusicApp, appName == "Spotify" else {
-            print("Spotify not detected")
+        guard currentMusicApp != nil else { return }
+        // TODO: Implement system-wide next track
+        print("Next track not yet implemented for app: \(currentMusicApp ?? "nil")")
+    }
+}
+
+// MediaRemote Manager for system-wide Now Playing info
+class NowPlayingManager {
+    private typealias MRMediaRemoteGetNowPlayingInfoFunction = @convention(c) (DispatchQueue, @escaping ([String: Any]) -> Void) -> Void
+    private typealias MRNowPlayingClientGetBundleIdentifierFunction = @convention(c) (AnyObject) -> String?
+    
+    func fetchNowPlayingInfo(completion: @escaping ([String: Any]?, String?) -> Void) {
+        guard let bundle = CFBundleCreate(kCFAllocatorDefault, URL(fileURLWithPath: "/System/Library/PrivateFrameworks/MediaRemote.framework") as CFURL),
+              let getNowPlayingInfoPointer = CFBundleGetFunctionPointerForName(bundle, "MRMediaRemoteGetNowPlayingInfo" as CFString),
+              let getBundleIdentifierPointer = CFBundleGetFunctionPointerForName(bundle, "MRNowPlayingClientGetBundleIdentifier" as CFString) else {
+            print("Failed to load MediaRemote framework")
+            completion(nil, nil)
             return
         }
         
-        let scriptSource = """
-        tell application "Spotify"
-            next track
-        end tell
-        """
+        let getNowPlayingInfo = unsafeBitCast(getNowPlayingInfoPointer, to: MRMediaRemoteGetNowPlayingInfoFunction.self)
+        let getBundleIdentifier = unsafeBitCast(getBundleIdentifierPointer, to: MRNowPlayingClientGetBundleIdentifierFunction.self)
         
-        if let script = NSAppleScript(source: scriptSource) {
-            var errorInfo: NSDictionary? = nil
-            script.executeAndReturnError(&errorInfo)
-            if let error = errorInfo {
-                print("Next Track Error: \(error)")
+        getNowPlayingInfo(DispatchQueue.main) { info in
+            if let clientData = info["kMRMediaRemoteNowPlayingInfoClientPropertiesData"] as? Data,
+               let clientClass = NSClassFromString("_MRNowPlayingClientProtobuf"),
+               let clientObject = clientClass.alloc() as? NSObject,
+               clientObject.responds(to: Selector(("initWithData:"))) {
+                _ = clientObject.perform(Selector(("initWithData:")), with: clientData)
+                let bundleID = getBundleIdentifier(clientObject)
+                completion(info, bundleID)
+            } else {
+                completion(info, nil)
             }
         }
     }
-    
-    struct ContentView_Previews: PreviewProvider {
-        static var previews: some View {
-            ContentView()
-        }
+}
+
+// Preview Provider
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
     }
 }
