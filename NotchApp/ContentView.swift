@@ -7,6 +7,7 @@ enum MediaCommand: Int32 {
     case pause = 1
     case nextTrack = 4
     case previousTrack = 5
+    case changePlaybackPosition = 10 // For seeking
 }
 
 struct ContentView: View {
@@ -16,62 +17,72 @@ struct ContentView: View {
     @State private var thumbnail: NSImage? = nil
     @State private var currentMusicApp: String? = nil
     @State private var timer: Timer? = nil
-    @State private var isPlayPauseButtonEnabled = true // New state to control button enabling
+    @State private var isPlayPauseButtonEnabled = true
+    @State private var useSeekMode = UserDefaults.standard.bool(forKey: "useSeekMode") ?? false // Persist toggle state
     
     private let nowPlayingManager = NowPlayingManager()
     
     var body: some View {
-        HStack(spacing: 10) {
-            if let thumbnail = thumbnail {
-                Image(nsImage: thumbnail)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 30, height: 30)
-                    .cornerRadius(4)
-            } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(1))
-                    .frame(width: 30, height: 30)
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                if let thumbnail = thumbnail {
+                    Image(nsImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 30, height: 30)
+                        .cornerRadius(4)
+                } else {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.gray.opacity(1))
+                        .frame(width: 30, height: 30)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(trackName)
+                        .font(.system(size: 12, weight: .medium))
+                        .lineLimit(1)
+                    
+                    Text(artistName)
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                HStack(spacing: 12) {
+                    Button(action: previousOrRewind) {
+                        Image(systemName: useSeekMode ? "backward.end" : "backward.fill")
+                            .font(.system(size: 12))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(currentMusicApp == nil)
+                    
+                    Button(action: togglePlayback) {
+                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 14))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(currentMusicApp == nil || !isPlayPauseButtonEnabled)
+                    
+                    Button(action: nextOrFastForward) {
+                        Image(systemName: useSeekMode ? "forward.end" : "forward.fill")
+                            .font(.system(size: 12))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .disabled(currentMusicApp == nil)
+                }
             }
             
-            VStack(alignment: .leading, spacing: 4) {
-                Text(trackName)
-                    .font(.system(size: 12, weight: .medium))
-                    .lineLimit(1)
-                
-                Text(artistName)
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-            }
-            
-            Spacer()
-            
-            HStack(spacing: 12) {
-                Button(action: previousTrack) {
-                    Image(systemName: "backward.fill")
-                        .font(.system(size: 12))
+            // Toggle button for Seek Mode vs. Track Mode
+            Toggle("Seek Mode", isOn: $useSeekMode)
+                .font(.system(size: 10))
+                .onChange(of: useSeekMode) { newValue in
+                    UserDefaults.standard.set(newValue, forKey: "useSeekMode")
                 }
-                .buttonStyle(PlainButtonStyle())
-                .disabled(currentMusicApp == nil)
-                
-                Button(action: togglePlayback) {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 14))
-                }
-                .buttonStyle(PlainButtonStyle())
-                .disabled(currentMusicApp == nil || !isPlayPauseButtonEnabled) // Disable based on new state
-                
-                Button(action: nextTrack) {
-                    Image(systemName: "forward.fill")
-                        .font(.system(size: 12))
-                }
-                .buttonStyle(PlainButtonStyle())
-                .disabled(currentMusicApp == nil)
-            }
         }
         .padding(.horizontal, 10)
-        .frame(height: 40)
+        .padding(.vertical, 5)
         .background(Color.black.opacity(1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .onAppear {
@@ -137,34 +148,78 @@ struct ContentView: View {
         guard currentMusicApp != nil else { return }
         
         // Disable the button temporarily to prevent rapid toggling
-        // isPlayPauseButtonEnabled = false
+        isPlayPauseButtonEnabled = false
         nowPlayingManager.sendMediaCommand(command: isPlaying ? .pause : .play) { success in
-        //     if !success {
-        //         print("Failed to toggle playback for \(self.currentMusicApp ?? "unknown app")")
-        //     }
-        //     // Re-enable the button after a short delay
-        //     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-        //         self.isPlayPauseButtonEnabled = true
-             }
-        // }
-    }
-    
-    // Previous track
-    func previousTrack() {
-        guard currentMusicApp != nil else { return }
-        nowPlayingManager.sendMediaCommand(command: .previousTrack) { success in
             if !success {
-                print("Failed to go to previous track for \(self.currentMusicApp ?? "unknown app")")
+                print("Failed to toggle playback for \(self.currentMusicApp ?? "unknown app")")
+            }
+            // Re-enable the button after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.isPlayPauseButtonEnabled = true
             }
         }
     }
     
-    // Next track
-    func nextTrack() {
-        guard currentMusicApp != nil else { return }
-        nowPlayingManager.sendMediaCommand(command: .nextTrack) { success in
-            if !success {
-                print("Failed to go to next track for \(self.currentMusicApp ?? "unknown app")")
+    // Previous or Rewind
+    func previousOrRewind() {
+        guard let currentMusicApp = currentMusicApp else { return }
+        
+        if useSeekMode {
+            // Rewind: 15 seconds for Spotify, 5 seconds for Chrome
+            let seconds = currentMusicApp == "com.spotify.client" ? -15.0 : -5.0
+            if currentMusicApp.contains("com.google.Chrome") {
+                // Use AppleScript for Chrome
+                nowPlayingManager.seekInChrome(seconds: seconds) { success in
+                    if !success {
+                        print("Failed to rewind in Chrome")
+                    }
+                }
+            } else {
+                // Use MediaRemote for Spotify
+                nowPlayingManager.seekBy(seconds: seconds) { success in
+                    if !success {
+                        print("Failed to rewind for \(currentMusicApp)")
+                    }
+                }
+            }
+        } else {
+            // Previous track
+            nowPlayingManager.sendMediaCommand(command: .previousTrack) { success in
+                if !success {
+                    print("Failed to go to previous track for \(currentMusicApp)")
+                }
+            }
+        }
+    }
+    
+    // Next or Fast-Forward
+    func nextOrFastForward() {
+        guard let currentMusicApp = currentMusicApp else { return }
+        
+        if useSeekMode {
+            // Fast-forward: 15 seconds for Spotify, 5 seconds for Chrome
+            let seconds = currentMusicApp == "com.spotify.client" ? 15.0 : 5.0
+            if currentMusicApp.contains("com.google.Chrome") {
+                // Use AppleScript for Chrome
+                nowPlayingManager.seekInChrome(seconds: seconds) { success in
+                    if !success {
+                        print("Failed to fast-forward in Chrome")
+                    }
+                }
+            } else {
+                // Use MediaRemote for Spotify
+                nowPlayingManager.seekBy(seconds: seconds) { success in
+                    if !success {
+                        print("Failed to fast-forward for \(currentMusicApp)")
+                    }
+                }
+            }
+        } else {
+            // Next track
+            nowPlayingManager.sendMediaCommand(command: .nextTrack) { success in
+                if !success {
+                    print("Failed to go to next track for \(currentMusicApp)")
+                }
             }
         }
     }
@@ -176,6 +231,7 @@ class NowPlayingManager {
     private typealias MRMediaRemoteGetNowPlayingInfoFunction = @convention(c) (DispatchQueue, @escaping ([String: Any]) -> Void) -> Void
     private typealias MRNowPlayingClientGetBundleIdentifierFunction = @convention(c) (AnyObject) -> String?
     private typealias MRMediaRemoteSendCommandFunction = @convention(c) (Int32, Any?) -> Bool
+    private typealias MRMediaRemoteSetElapsedTimeFunction = @convention(c) (Double) -> Void
     
     // Load framework and function pointers once
     private lazy var mediaRemoteBundle: CFBundle? = {
@@ -195,6 +251,11 @@ class NowPlayingManager {
     private lazy var sendCommand: MRMediaRemoteSendCommandFunction? = {
         guard let pointer = CFBundleGetFunctionPointerForName(mediaRemoteBundle, "MRMediaRemoteSendCommand" as CFString) else { return nil }
         return unsafeBitCast(pointer, to: MRMediaRemoteSendCommandFunction.self)
+    }()
+    
+    private lazy var setElapsedTime: MRMediaRemoteSetElapsedTimeFunction? = {
+        guard let pointer = CFBundleGetFunctionPointerForName(mediaRemoteBundle, "MRMediaRemoteSetElapsedTime" as CFString) else { return nil }
+        return unsafeBitCast(pointer, to: MRMediaRemoteSetElapsedTimeFunction.self)
     }()
     
     // Fetch Now Playing info
@@ -235,6 +296,56 @@ class NowPlayingManager {
         
         let success = sendCommand(command.rawValue, nil)
         completion(success)
+    }
+    
+    // Seek by a relative number of seconds (for Spotify)
+    public func seekBy(seconds: Double, completion: @escaping (Bool) -> Void) {
+        fetchNowPlayingInfo { info, _ in
+            guard let info = info,
+                  let elapsedTime = info["kMRMediaRemoteNowPlayingInfoElapsedTime"] as? Double,
+                  let setElapsedTime = self.setElapsedTime else {
+                print("Failed to fetch current playback position or load MRMediaRemoteSetElapsedTime")
+                completion(false)
+                return
+            }
+            
+            let newTime = max(0, elapsedTime + seconds)
+            setElapsedTime(newTime)
+            completion(true)
+        }
+    }
+    
+    // Seek in Chrome using AppleScript
+    public func seekInChrome(seconds: Double, completion: @escaping (Bool) -> Void) {
+        let scriptSource = """
+        tell application "Google Chrome"
+            set windowList to every window
+            repeat with aWindow in windowList
+                set tabList to every tab of aWindow
+                repeat with aTab in tabList
+                    if (URL of aTab contains "youtube.com") then
+                        tell aTab
+                            execute javascript "var vid = document.querySelector('video'); if (vid) { vid.currentTime += \(seconds); }"
+                        end tell
+                        return
+                    end if
+                end repeat
+            end repeat
+        end tell
+        """
+        
+        if let script = NSAppleScript(source: scriptSource) {
+            var errorInfo: NSDictionary? = nil
+            script.executeAndReturnError(&errorInfo)
+            if let error = errorInfo {
+                print("AppleScript Error for Chrome seek: \(error)")
+                completion(false)
+            } else {
+                completion(true)
+            }
+        } else {
+            completion(false)
+        }
     }
 }
 
