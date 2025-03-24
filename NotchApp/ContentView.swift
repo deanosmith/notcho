@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-// Media command enum (moved outside to be accessible)
+// Media command enum
 enum MediaCommand: Int32 {
     case play = 0
     case pause = 1
@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var thumbnail: NSImage? = nil
     @State private var currentMusicApp: String? = nil
     @State private var timer: Timer? = nil
+    @State private var isPlayPauseButtonEnabled = true // New state to control button enabling
     
     private let nowPlayingManager = NowPlayingManager()
     
@@ -59,7 +60,7 @@ struct ContentView: View {
                         .font(.system(size: 14))
                 }
                 .buttonStyle(PlainButtonStyle())
-                .disabled(currentMusicApp == nil)
+                .disabled(currentMusicApp == nil || !isPlayPauseButtonEnabled) // Disable based on new state
                 
                 Button(action: nextTrack) {
                     Image(systemName: "forward.fill")
@@ -104,15 +105,16 @@ struct ContentView: View {
                 
                 // Update track and artist info
                 if let title = info["kMRMediaRemoteNowPlayingInfoTitle"] as? String, !title.isEmpty {
+                    // Only update thumbnail if the track has changed
+                    let trackChanged = self.trackName != title
+                    
                     self.trackName = title
                     self.artistName = info["kMRMediaRemoteNowPlayingInfoArtist"] as? String ?? "Unknown Artist"
                     self.currentMusicApp = bundleID ?? "Unknown App"
                     
-                    // Update artwork if available
-                    if let artworkData = info["kMRMediaRemoteNowPlayingInfoArtworkData"] as? Data {
+                    // Update artwork only if track changed and artwork data is available
+                    if trackChanged, let artworkData = info["kMRMediaRemoteNowPlayingInfoArtworkData"] as? Data {
                         self.thumbnail = NSImage(data: artworkData)
-                    } else {
-                        self.thumbnail = nil
                     }
                 } else {
                     self.resetToIdleState()
@@ -133,15 +135,18 @@ struct ContentView: View {
     // Toggle playback (play/pause)
     func togglePlayback() {
         guard currentMusicApp != nil else { return }
+        
+        // Disable the button temporarily to prevent rapid toggling
+        // isPlayPauseButtonEnabled = false
         nowPlayingManager.sendMediaCommand(command: isPlaying ? .pause : .play) { success in
-            if success {
-                DispatchQueue.main.async {
-                    self.isPlaying.toggle()
-                }
-            } else {
-                print("Failed to toggle playback for \(self.currentMusicApp ?? "unknown app")")
-            }
-        }
+        //     if !success {
+        //         print("Failed to toggle playback for \(self.currentMusicApp ?? "unknown app")")
+        //     }
+        //     // Re-enable the button after a short delay
+        //     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        //         self.isPlayPauseButtonEnabled = true
+             }
+        // }
     }
     
     // Previous track
@@ -151,7 +156,6 @@ struct ContentView: View {
             if !success {
                 print("Failed to go to previous track for \(self.currentMusicApp ?? "unknown app")")
             }
-            // Update will happen via polling
         }
     }
     
@@ -162,7 +166,6 @@ struct ContentView: View {
             if !success {
                 print("Failed to go to next track for \(self.currentMusicApp ?? "unknown app")")
             }
-            // Update will happen via polling
         }
     }
 }
@@ -212,12 +215,8 @@ class NowPlayingManager {
             if let clientData = info["kMRMediaRemoteNowPlayingInfoClientPropertiesData"] as? Data,
                let clientClass = NSClassFromString("_MRNowPlayingClientProtobuf"),
                let clientObject = clientClass.alloc() as? NSObject,
-               //clientObject.responds(to: #selector(NSClassFromString("initWithData:")!.init)) {
-                //_ = clientObject.perform(#selector(NSClassFromString("initWithData:")!.init), with: clientData)
-                
-                clientObject.responds(to: Selector(("initWithData:"))) {
-                 _ = clientObject.perform(Selector(("initWithData:")), with: clientData)
-
+               clientObject.responds(to: Selector(("initWithData:"))) {
+                _ = clientObject.perform(Selector(("initWithData:")), with: clientData)
                 let bundleID = getBundleIdentifier(clientObject)
                 completion(info, bundleID)
             } else {
