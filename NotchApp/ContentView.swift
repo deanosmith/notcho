@@ -23,7 +23,7 @@ struct ContentView: View {
     
     // Dynamic width based on Seek Mode
     private var notchWidth: CGFloat {
-        useSeekMode ? 370 : 300 // Wider when Seek Mode is on, narrower when off
+        useSeekMode ? 365 : 295 // Wider when Seek Mode is on, narrower when off
     }
     
     var body: some View {
@@ -74,9 +74,7 @@ struct ContentView: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .frame(width: notchWidth) // Dynamic width
-        //.frame(minWidth: notchWidth, alignment: .leading) // Anchor left, grow right
-        //.frame(minWidth: 20, alignment: .leading) // Anchor left, grow right
-        .background(Color.black.opacity(0.8))
+        .background(Color.black.opacity(1))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .onTapGesture {
             useSeekMode.toggle()

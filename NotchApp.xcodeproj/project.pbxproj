@@ -6,6 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		515826E42D91A62600BB0215 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515826DD2D91A62600BB0215 /* AppDelegate.swift */; };
+		515826E52D91A62600BB0215 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515826DF2D91A62600BB0215 /* ContentView.swift */; };
+		515826E62D91A62600BB0215 /* NotchAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515826E22D91A62600BB0215 /* NotchAppApp.swift */; };
+		515826E72D91A62600BB0215 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 515826DB2D91A62600BB0215 /* Preview Assets.xcassets */; };
+		515826E82D91A62600BB0215 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 515826E02D91A62600BB0215 /* Info.plist */; };
+		515826E92D91A62600BB0215 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 515826DE2D91A62600BB0215 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		51D3E1C82D843C8E00B7B83A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +33,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		515826DB2D91A62600BB0215 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		515826DD2D91A62600BB0215 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		515826DE2D91A62600BB0215 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		515826DF2D91A62600BB0215 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		515826E02D91A62600BB0215 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		515826E12D91A62600BB0215 /* NotchApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NotchApp.entitlements; sourceTree = "<group>"; };
+		515826E22D91A62600BB0215 /* NotchAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchAppApp.swift; sourceTree = "<group>"; };
 		51D3E1B62D843C8D00B7B83A /* NotchApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NotchApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		51D3E1C72D843C8E00B7B83A /* NotchAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NotchAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		51D3E1D12D843C8E00B7B83A /* NotchAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NotchAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -72,6 +88,28 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		515826DC2D91A62600BB0215 /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				515826DB2D91A62600BB0215 /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		515826E32D91A62600BB0215 /* NotchApp */ = {
+			isa = PBXGroup;
+			children = (
+				515826DC2D91A62600BB0215 /* Preview Content */,
+				515826DD2D91A62600BB0215 /* AppDelegate.swift */,
+				515826DE2D91A62600BB0215 /* Assets.xcassets */,
+				515826DF2D91A62600BB0215 /* ContentView.swift */,
+				515826E02D91A62600BB0215 /* Info.plist */,
+				515826E12D91A62600BB0215 /* NotchApp.entitlements */,
+				515826E22D91A62600BB0215 /* NotchAppApp.swift */,
+			);
+			path = NotchApp;
+			sourceTree = "<group>";
+		};
 		51D3E1AD2D843C8C00B7B83A = {
 			isa = PBXGroup;
 			children = (
@@ -79,6 +117,7 @@
 				51D3E1CA2D843C8E00B7B83A /* NotchAppTests */,
 				51D3E1D42D843C8E00B7B83A /* NotchAppUITests */,
 				51D3E1B72D843C8D00B7B83A /* Products */,
+				515826E32D91A62600BB0215 /* NotchApp */,
 			);
 			sourceTree = "<group>";
 		};
@@ -212,6 +251,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				515826E72D91A62600BB0215 /* Preview Assets.xcassets in Resources */,
+				515826E82D91A62600BB0215 /* Info.plist in Resources */,
+				515826E92D91A62600BB0215 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -236,6 +278,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				515826E42D91A62600BB0215 /* AppDelegate.swift in Sources */,
+				515826E52D91A62600BB0215 /* ContentView.swift in Sources */,
+				515826E62D91A62600BB0215 /* NotchAppApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -394,7 +439,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = NotchApp/NotchApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -404,6 +449,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -426,7 +472,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = NotchApp/NotchApp.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -436,6 +482,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -457,6 +504,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QZ6J2LFFY7;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.2;
 				MARKETING_VERSION = 1.0;
@@ -474,6 +522,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QZ6J2LFFY7;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.2;
 				MARKETING_VERSION = 1.0;
@@ -490,6 +539,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QZ6J2LFFY7;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "notch-app.NotchAppUITests";
@@ -505,6 +555,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QZ6J2LFFY7;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "notch-app.NotchAppUITests";
