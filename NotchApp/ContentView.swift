@@ -1,6 +1,14 @@
 import SwiftUI
 import AppKit
 
+// Media command enum (moved outside to be accessible)
+enum MediaCommand: Int32 {
+    case play = 0
+    case pause = 1
+    case nextTrack = 4
+    case previousTrack = 5
+}
+
 struct ContentView: View {
     @State private var isPlaying = false
     @State private var trackName = "Nothing Playing"
@@ -17,7 +25,7 @@ struct ContentView: View {
                 Image(nsImage: thumbnail)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 30, height: 30) // Adjusted from 3x3 for visibility
+                    .frame(width: 30, height: 30)
                     .cornerRadius(4)
             } else {
                 RoundedRectangle(cornerRadius: 8)
@@ -122,55 +130,112 @@ struct ContentView: View {
         self.currentMusicApp = nil
     }
     
-    // Placeholder playback controls (to be implemented later)
+    // Toggle playback (play/pause)
     func togglePlayback() {
         guard currentMusicApp != nil else { return }
-        // TODO: Implement system-wide playback control
-        print("Toggle playback not yet implemented for app: \(currentMusicApp ?? "nil")")
+        nowPlayingManager.sendMediaCommand(command: isPlaying ? .pause : .play) { success in
+            if success {
+                DispatchQueue.main.async {
+                    self.isPlaying.toggle()
+                }
+            } else {
+                print("Failed to toggle playback for \(self.currentMusicApp ?? "unknown app")")
+            }
+        }
     }
     
+    // Previous track
     func previousTrack() {
         guard currentMusicApp != nil else { return }
-        // TODO: Implement system-wide previous track
-        print("Previous track not yet implemented for app: \(currentMusicApp ?? "nil")")
+        nowPlayingManager.sendMediaCommand(command: .previousTrack) { success in
+            if !success {
+                print("Failed to go to previous track for \(self.currentMusicApp ?? "unknown app")")
+            }
+            // Update will happen via polling
+        }
     }
     
+    // Next track
     func nextTrack() {
         guard currentMusicApp != nil else { return }
-        // TODO: Implement system-wide next track
-        print("Next track not yet implemented for app: \(currentMusicApp ?? "nil")")
+        nowPlayingManager.sendMediaCommand(command: .nextTrack) { success in
+            if !success {
+                print("Failed to go to next track for \(self.currentMusicApp ?? "unknown app")")
+            }
+            // Update will happen via polling
+        }
     }
 }
 
-// MediaRemote Manager for system-wide Now Playing info
+// MediaRemote Manager for system-wide Now Playing info and control
 class NowPlayingManager {
+    // Function types for MediaRemote
     private typealias MRMediaRemoteGetNowPlayingInfoFunction = @convention(c) (DispatchQueue, @escaping ([String: Any]) -> Void) -> Void
     private typealias MRNowPlayingClientGetBundleIdentifierFunction = @convention(c) (AnyObject) -> String?
+    private typealias MRMediaRemoteSendCommandFunction = @convention(c) (Int32, Any?) -> Bool
     
-    func fetchNowPlayingInfo(completion: @escaping ([String: Any]?, String?) -> Void) {
-        guard let bundle = CFBundleCreate(kCFAllocatorDefault, URL(fileURLWithPath: "/System/Library/PrivateFrameworks/MediaRemote.framework") as CFURL),
-              let getNowPlayingInfoPointer = CFBundleGetFunctionPointerForName(bundle, "MRMediaRemoteGetNowPlayingInfo" as CFString),
-              let getBundleIdentifierPointer = CFBundleGetFunctionPointerForName(bundle, "MRNowPlayingClientGetBundleIdentifier" as CFString) else {
-            print("Failed to load MediaRemote framework")
+    // Load framework and function pointers once
+    private lazy var mediaRemoteBundle: CFBundle? = {
+        CFBundleCreate(kCFAllocatorDefault, URL(fileURLWithPath: "/System/Library/PrivateFrameworks/MediaRemote.framework") as CFURL)
+    }()
+    
+    private lazy var getNowPlayingInfo: MRMediaRemoteGetNowPlayingInfoFunction? = {
+        guard let pointer = CFBundleGetFunctionPointerForName(mediaRemoteBundle, "MRMediaRemoteGetNowPlayingInfo" as CFString) else { return nil }
+        return unsafeBitCast(pointer, to: MRMediaRemoteGetNowPlayingInfoFunction.self)
+    }()
+    
+    private lazy var getBundleIdentifier: MRNowPlayingClientGetBundleIdentifierFunction? = {
+        guard let pointer = CFBundleGetFunctionPointerForName(mediaRemoteBundle, "MRNowPlayingClientGetBundleIdentifier" as CFString) else { return nil }
+        return unsafeBitCast(pointer, to: MRNowPlayingClientGetBundleIdentifierFunction.self)
+    }()
+    
+    private lazy var sendCommand: MRMediaRemoteSendCommandFunction? = {
+        guard let pointer = CFBundleGetFunctionPointerForName(mediaRemoteBundle, "MRMediaRemoteSendCommand" as CFString) else { return nil }
+        return unsafeBitCast(pointer, to: MRMediaRemoteSendCommandFunction.self)
+    }()
+    
+    // Fetch Now Playing info
+    public func fetchNowPlayingInfo(completion: @escaping ([String: Any]?, String?) -> Void) {
+        guard let getNowPlayingInfo = getNowPlayingInfo else {
+            print("Failed to load MRMediaRemoteGetNowPlayingInfo")
             completion(nil, nil)
             return
         }
         
-        let getNowPlayingInfo = unsafeBitCast(getNowPlayingInfoPointer, to: MRMediaRemoteGetNowPlayingInfoFunction.self)
-        let getBundleIdentifier = unsafeBitCast(getBundleIdentifierPointer, to: MRNowPlayingClientGetBundleIdentifierFunction.self)
+        guard let getBundleIdentifier = getBundleIdentifier else {
+            print("Failed to load MRNowPlayingClientGetBundleIdentifier")
+            completion(nil, nil)
+            return
+        }
         
         getNowPlayingInfo(DispatchQueue.main) { info in
             if let clientData = info["kMRMediaRemoteNowPlayingInfoClientPropertiesData"] as? Data,
                let clientClass = NSClassFromString("_MRNowPlayingClientProtobuf"),
                let clientObject = clientClass.alloc() as? NSObject,
-               clientObject.responds(to: Selector(("initWithData:"))) {
-                _ = clientObject.perform(Selector(("initWithData:")), with: clientData)
+               //clientObject.responds(to: #selector(NSClassFromString("initWithData:")!.init)) {
+                //_ = clientObject.perform(#selector(NSClassFromString("initWithData:")!.init), with: clientData)
+                
+                clientObject.responds(to: Selector(("initWithData:"))) {
+                 _ = clientObject.perform(Selector(("initWithData:")), with: clientData)
+
                 let bundleID = getBundleIdentifier(clientObject)
                 completion(info, bundleID)
             } else {
                 completion(info, nil)
             }
         }
+    }
+    
+    // Send media control command
+    public func sendMediaCommand(command: MediaCommand, completion: @escaping (Bool) -> Void) {
+        guard let sendCommand = sendCommand else {
+            print("Failed to load MRMediaRemoteSendCommand")
+            completion(false)
+            return
+        }
+        
+        let success = sendCommand(command.rawValue, nil)
+        completion(success)
     }
 }
 
