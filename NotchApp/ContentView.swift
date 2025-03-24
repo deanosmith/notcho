@@ -18,7 +18,7 @@ struct ContentView: View {
     @State private var currentMusicApp: String? = nil
     @State private var timer: Timer? = nil
     @State private var isPlayPauseButtonEnabled = true
-    @State private var useSeekMode = UserDefaults.standard.bool(forKey: "useSeekMode") ?? false // Persist toggle state
+    @State private var useSeekMode = UserDefaults.standard.bool(forKey: "useSeekMode") ?? false
     
     private let nowPlayingManager = NowPlayingManager()
     
@@ -52,7 +52,7 @@ struct ContentView: View {
                 
                 HStack(spacing: 12) {
                     Button(action: previousOrRewind) {
-                        Image(systemName: useSeekMode ? "backward.end" : "backward.fill")
+                        Image(systemName: useSeekMode ? "gobackward.15" : "backward.fill")
                             .font(.system(size: 12))
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -66,7 +66,7 @@ struct ContentView: View {
                     .disabled(currentMusicApp == nil || !isPlayPauseButtonEnabled)
                     
                     Button(action: nextOrFastForward) {
-                        Image(systemName: useSeekMode ? "forward.end" : "forward.fill")
+                        Image(systemName: useSeekMode ? "goforward.15" : "forward.fill")
                             .font(.system(size: 12))
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -74,7 +74,6 @@ struct ContentView: View {
                 }
             }
             
-            // Toggle button for Seek Mode vs. Track Mode
             Toggle("Seek Mode", isOn: $useSeekMode)
                 .font(.system(size: 10))
                 .onChange(of: useSeekMode) { newValue in
@@ -86,10 +85,23 @@ struct ContentView: View {
         .background(Color.black.opacity(1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .onAppear {
+            setupNotificationObservers()
             startPollingForMusicInfo()
         }
         .onDisappear {
             timer?.invalidate()
+        }
+    }
+    
+    // Setup Spotify notification observers
+    func setupNotificationObservers() {
+        let nc = DistributedNotificationCenter.default()
+        nc.addObserver(
+            forName: NSNotification.Name("com.spotify.client.PlaybackStateChanged"),
+            object: nil,
+            queue: .main
+        ) { notification in
+            self.handleSpotifyNotification(notification)
         }
     }
     
@@ -132,6 +144,14 @@ struct ContentView: View {
                 }
             }
         }
+    }
+    
+    // Handle Spotify notification for logging metadata
+    func handleSpotifyNotification(_ notification: Notification) {
+        guard let userInfo = notification.userInfo else { return }
+        
+        // Log Spotify notification metadata
+        print("Spotify Notification Metadata: \(userInfo)")
     }
     
     // Reset UI to idle state
@@ -279,6 +299,9 @@ class NowPlayingManager {
                clientObject.responds(to: Selector(("initWithData:"))) {
                 _ = clientObject.perform(Selector(("initWithData:")), with: clientData)
                 let bundleID = getBundleIdentifier(clientObject)
+                // Log MediaRemote metadata
+                print("MediaRemote Metadata: \(info)")
+                print("Bundle ID: \(bundleID ?? "unknown")")
                 completion(info, bundleID)
             } else {
                 completion(info, nil)
