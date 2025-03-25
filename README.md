@@ -7,4 +7,6 @@ A simple notch application for macOS that allows for basic media controls; play/
 ## Podcast Controls
 <img width="378" alt="image" src="https://github.com/user-attachments/assets/edc2ec8f-f1b2-4aa3-819b-8f5bab5d337a" />
 
-* This application does not contain its main functionality due to possible future monetisation.
+
+
+This application does not contain its main functionality due to possible future monetisation.
