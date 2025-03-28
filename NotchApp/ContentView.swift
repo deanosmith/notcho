@@ -1,18 +1,12 @@
 import SwiftUI
 import AppKit
 
-// Media command enum
+// Media command enum (simplified, no play/pause needed)
 enum MediaCommand: Int32 {
-    case play = 0
-    case pause = 1
-    case nextTrack = 4
-    case previousTrack = 5
-    case changePlaybackPosition = 10 // For seeking
+    case changePlaybackPosition = 10 // For seeking only
 }
 
-
 struct ContentView: View {
-    @State private var isPlaying = false
     @State private var trackName = "Nothing Playing"
     @State private var artistName = ""
     @State private var thumbnail: NSImage? = nil
@@ -44,7 +38,7 @@ struct ContentView: View {
             
             Spacer()
             
-            // Playback controls (always show play/pause, show rewind/skip if in Seek Mode)
+            // Playback controls (only rewind/skip when in Seek Mode)
             HStack(spacing: 12) {
                 if useSeekMode {
                     Button(action: previousOrRewind) {
@@ -55,12 +49,13 @@ struct ContentView: View {
                     .disabled(currentMusicApp == nil)
                 }
                 
-                Button(action: togglePlayback) {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                // Waveform button to toggle seek mode
+                Button(action: toggleSeekMode) {
+                    Image(systemName: "waveform")
                         .font(.system(size: 22))
                 }
                 .buttonStyle(PlainButtonStyle())
-                .disabled(currentMusicApp == nil)
+                .accessibilityLabel("Toggle Seek Mode")
                 
                 if useSeekMode {
                     Button(action: nextOrFastForward) {
@@ -75,12 +70,8 @@ struct ContentView: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .frame(width: notchWidth) // Dynamic width
-        .background(Color.black.opacity(0.9))
+        .background(Color.black.opacity(1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .onTapGesture {
-            useSeekMode.toggle()
-            UserDefaults.standard.set(useSeekMode, forKey: "useSeekMode")
-        }
         .onAppear {
             startPollingForMusicInfo()
         }
@@ -106,20 +97,14 @@ struct ContentView: View {
                     return
                 }
                 
-                // Update playback state
-                let playbackRate = info["kMRMediaRemoteNowPlayingInfoPlaybackRate"] as? Double ?? 0.0
-                self.isPlaying = playbackRate > 0.0
-                
-                // Update track and artist info (still needed for internal state)
+                // Update track and artist info
                 if let title = info["kMRMediaRemoteNowPlayingInfoTitle"] as? String, !title.isEmpty {
-                    // Only update thumbnail if the track has changed
                     let trackChanged = self.trackName != title
                     
                     self.trackName = title
                     self.artistName = info["kMRMediaRemoteNowPlayingInfoArtist"] as? String ?? "Unknown Artist"
                     self.currentMusicApp = bundleID ?? "Unknown App"
                     
-                    // Update artwork only if track changed and artwork data is available
                     if trackChanged, let artworkData = info["kMRMediaRemoteNowPlayingInfoArtworkData"] as? Data {
                         self.thumbnail = NSImage(data: artworkData)
                     }
@@ -132,39 +117,30 @@ struct ContentView: View {
     
     // Reset UI to idle state
     func resetToIdleState() {
-        self.isPlaying = false
         self.trackName = "Nothing Playing"
         self.artistName = ""
         self.thumbnail = nil
         self.currentMusicApp = nil
     }
     
-    // Toggle playback (play/pause)
-    func togglePlayback() {
-        guard currentMusicApp != nil else { return }
-        
-        nowPlayingManager.sendMediaCommand(command: isPlaying ? .pause : .play) { success in
-            if !success {
-                print("Failed to toggle playback for \(self.currentMusicApp ?? "unknown app")")
-            }
-        }
+    // Toggle seek mode
+    func toggleSeekMode() {
+        useSeekMode.toggle()
+        UserDefaults.standard.set(useSeekMode, forKey: "useSeekMode")
     }
     
     // Previous or Rewind (only used in Seek Mode)
     func previousOrRewind() {
         guard let currentMusicApp = currentMusicApp else { return }
         
-        // Rewind: 15 seconds for Spotify, 5 seconds for Chrome
         let seconds = currentMusicApp == "com.spotify.client" ? -15.0 : -5.0
         if currentMusicApp.contains("com.google.Chrome") {
-            // Use AppleScript for Chrome
             nowPlayingManager.seekInChrome(seconds: seconds) { success in
                 if !success {
                     print("Failed to rewind in Chrome")
                 }
             }
         } else {
-            // Use MediaRemote for Spotify
             nowPlayingManager.seekBy(seconds: seconds) { success in
                 if !success {
                     print("Failed to rewind for \(currentMusicApp)")
@@ -177,17 +153,14 @@ struct ContentView: View {
     func nextOrFastForward() {
         guard let currentMusicApp = currentMusicApp else { return }
         
-        // Fast-forward: 15 seconds for Spotify, 5 seconds for Chrome
         let seconds = currentMusicApp == "com.spotify.client" ? 15.0 : 5.0
         if currentMusicApp.contains("com.google.Chrome") {
-            // Use AppleScript for Chrome
             nowPlayingManager.seekInChrome(seconds: seconds) { success in
                 if !success {
                     print("Failed to fast-forward in Chrome")
                 }
             }
         } else {
-            // Use MediaRemote for Spotify
             nowPlayingManager.seekBy(seconds: seconds) { success in
                 if !success {
                     print("Failed to fast-forward for \(currentMusicApp)")
@@ -199,13 +172,10 @@ struct ContentView: View {
 
 // MediaRemote Manager for system-wide Now Playing info and control
 class NowPlayingManager {
-    // Function types for MediaRemote
     private typealias MRMediaRemoteGetNowPlayingInfoFunction = @convention(c) (DispatchQueue, @escaping ([String: Any]) -> Void) -> Void
     private typealias MRNowPlayingClientGetBundleIdentifierFunction = @convention(c) (AnyObject) -> String?
-    private typealias MRMediaRemoteSendCommandFunction = @convention(c) (Int32, Any?) -> Bool
     private typealias MRMediaRemoteSetElapsedTimeFunction = @convention(c) (Double) -> Void
     
-    // Load framework and function pointers once
     private lazy var mediaRemoteBundle: CFBundle? = {
         CFBundleCreate(kCFAllocatorDefault, URL(fileURLWithPath: "/System/Library/PrivateFrameworks/MediaRemote.framework") as CFURL)
     }()
@@ -218,11 +188,6 @@ class NowPlayingManager {
     private lazy var getBundleIdentifier: MRNowPlayingClientGetBundleIdentifierFunction? = {
         guard let pointer = CFBundleGetFunctionPointerForName(mediaRemoteBundle, "MRNowPlayingClientGetBundleIdentifier" as CFString) else { return nil }
         return unsafeBitCast(pointer, to: MRNowPlayingClientGetBundleIdentifierFunction.self)
-    }()
-    
-    private lazy var sendCommand: MRMediaRemoteSendCommandFunction? = {
-        guard let pointer = CFBundleGetFunctionPointerForName(mediaRemoteBundle, "MRMediaRemoteSendCommand" as CFString) else { return nil }
-        return unsafeBitCast(pointer, to: MRMediaRemoteSendCommandFunction.self)
     }()
     
     private lazy var setElapsedTime: MRMediaRemoteSetElapsedTimeFunction? = {
@@ -251,26 +216,11 @@ class NowPlayingManager {
                clientObject.responds(to: Selector(("initWithData:"))) {
                 _ = clientObject.perform(Selector(("initWithData:")), with: clientData)
                 let bundleID = getBundleIdentifier(clientObject)
-                // Log MediaRemote metadata
-                print("MediaRemote Metadata: \(info)")
-                print("Bundle ID: \(bundleID ?? "unknown")")
                 completion(info, bundleID)
             } else {
                 completion(info, nil)
             }
         }
-    }
-    
-    // Send media control command
-    public func sendMediaCommand(command: MediaCommand, completion: @escaping (Bool) -> Void) {
-        guard let sendCommand = sendCommand else {
-            print("Failed to load MRMediaRemoteSendCommand")
-            completion(false)
-            return
-        }
-        
-        let success = sendCommand(command.rawValue, nil)
-        completion(success)
     }
     
     // Seek by a relative number of seconds (for Spotify)
