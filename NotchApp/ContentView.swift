@@ -13,61 +13,86 @@ struct ContentView: View {
     @State private var currentMusicApp: String? = nil
     @State private var timer: Timer? = nil
     @State private var useSeekMode = UserDefaults.standard.bool(forKey: "useSeekMode") ?? false
+    @State private var showDetails = false
     
     private let nowPlayingManager = NowPlayingManager()
     
     // Dynamic width based on Seek Mode
     private var notchWidth: CGFloat {
-        useSeekMode ? 358 : 300 // On, Off
+        useSeekMode ? 360 : 303 // On, Off
     }
     
     var body: some View {
-        HStack(spacing: 8) {
-            // Thumbnail
-            if let thumbnail = thumbnail {
-                Image(nsImage: thumbnail)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 30, height: 30)
-                    .cornerRadius(6)
+        VStack(spacing: 4) {
+            HStack(spacing: 8) {
+                // Thumbnail
+                if let thumbnail = thumbnail {
+                    Image(nsImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 30, height: 30)
+                        .cornerRadius(6)
+                }
+                
+                ZStack {
+                    Color.clear
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    showDetails.toggle()
+                }
+                
+                // Playback controls (only rewind/skip when in Seek Mode)
+                HStack(spacing: 6) {
+                    if useSeekMode {
+                        Button(action: previousOrRewind) {
+                            Image(systemName: "gobackward.15")
+                                .font(.system(size: 20))
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .disabled(currentMusicApp == nil)
+                    }
+                    
+                    // Waveform button to toggle seek mode
+                    Button(action: toggleSeekMode) {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 24))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .accessibilityLabel("Toggle Seek Mode")
+                    
+                    if useSeekMode {
+                        Button(action: nextOrFastForward) {
+                            Image(systemName: "goforward.15")
+                                .font(.system(size: 20))
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .disabled(currentMusicApp == nil)
+                    }
+                }
             }
-            
-            Spacer()
-            
-            // Playback controls (only rewind/skip when in Seek Mode)
-            HStack(spacing: 6) {
-                if useSeekMode {
-                    Button(action: previousOrRewind) {
-                        Image(systemName: "gobackward.15")
-                            .font(.system(size: 20))
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .disabled(currentMusicApp == nil)
+            if showDetails {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(trackName)
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    Text(artistName)
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                        .lineLimit(1)
                 }
-                
-                // Waveform button to toggle seek mode
-                Button(action: toggleSeekMode) {
-                    Image(systemName: "waveform")
-                        .font(.system(size: 24))
-                }
-                .buttonStyle(PlainButtonStyle())
-                .accessibilityLabel("Toggle Seek Mode")
-                
-                if useSeekMode {
-                    Button(action: nextOrFastForward) {
-                        Image(systemName: "goforward.15")
-                            .font(.system(size: 20))
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .disabled(currentMusicApp == nil)
-                }
+                .padding(.horizontal, 6)
             }
         }
         .padding(.horizontal, 6)
-        .padding(.vertical, 6)
+        .padding(.vertical, showDetails ? 10 : 6)
+        .frame(minHeight: 40, alignment: .top) // Set minimum height and align to top
         .frame(width: notchWidth) // Dynamic width
         .background(Color.black.opacity(0))
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .contentShape(Rectangle())
         .onAppear {
             startPollingForMusicInfo()
         }
