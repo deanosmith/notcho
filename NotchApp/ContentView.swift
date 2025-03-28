@@ -26,16 +26,21 @@ struct ContentView: View {
         VStack(spacing: 4) {
             HStack(spacing: 8) {
                 // Thumbnail
-                if let thumbnail = thumbnail {
-                    Button(action: openCurrentMediaSource) {
-                        Image(nsImage: thumbnail)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 30, height: 30)
-                            .cornerRadius(6)
+                VStack {
+                    if let thumbnail = thumbnail {
+                        Button(action: openCurrentMediaSource) {
+                            Image(nsImage: thumbnail)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 30, height: 30)
+                                .cornerRadius(6)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
-                    .buttonStyle(PlainButtonStyle())
+                    Spacer()
                 }
+                .frame(height: 40)
+                .frame(maxHeight: .infinity, alignment: .top)
                 
                 ZStack {
                     Color.clear
@@ -47,40 +52,63 @@ struct ContentView: View {
                 }
                 
                 // Playback controls (only rewind/skip when in Seek Mode)
-                HStack(spacing: 6) {
-                    if useSeekMode {
-                        Button(action: previousOrRewind) {
-                            Image(systemName: "gobackward.15")
-                                .font(.system(size: 20))
+                VStack {
+                    HStack(spacing: 6) {
+                        if useSeekMode {
+                            Button(action: previousOrRewind) {
+                                Image(systemName: "gobackward.15")
+                                    .font(.system(size: 20))
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .disabled(currentMusicApp == nil)
+                        }
+                        
+                        Button(action: toggleSeekMode) {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 24))
                         }
                         .buttonStyle(PlainButtonStyle())
-                        .disabled(currentMusicApp == nil)
-                    }
-                    
-                    // Waveform button to toggle seek mode
-                    Button(action: toggleSeekMode) {
-                        Image(systemName: "waveform")
-                            .font(.system(size: 24))
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .accessibilityLabel("Toggle Seek Mode")
-                    
-                    if useSeekMode {
-                        Button(action: nextOrFastForward) {
-                            Image(systemName: "goforward.15")
-                                .font(.system(size: 20))
+                        .accessibilityLabel("Toggle Seek Mode")
+                        
+                        if useSeekMode {
+                            Button(action: nextOrFastForward) {
+                                Image(systemName: "goforward.15")
+                                    .font(.system(size: 20))
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .disabled(currentMusicApp == nil)
                         }
-                        .buttonStyle(PlainButtonStyle())
-                        .disabled(currentMusicApp == nil)
                     }
+                    Spacer()
                 }
+                .frame(height: 40)
+                .frame(maxHeight: .infinity, alignment: .top)
+            }
+            
+            if isExpanded {
+                VStack(alignment: .center, spacing: 2) {
+                    Text(trackName)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    Text(artistName)
+                        .font(.system(size: 10))
+                        .foregroundColor(.gray)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 2)
+                .background(.ultraThinMaterial)
             }
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 6)
-        .frame(height: isExpanded ? 100 : 44, alignment: .top) // Set minimum height and align to top
+        .frame(height: isExpanded ? 85 : 44, alignment: .top) // Set minimum height and align to top
         .frame(width: notchWidth) // Dynamic width
-        .background(Color.black.opacity(1))
+        .background(Color.black.opacity(0.001))
+        //.background(.ultraThinMaterial)
+        //.background(isExpanded ? AnyView(Color.black.opacity(0.25)) : AnyView(Color.black.opacity(0.001)))
+        //.background(isExpanded ? background(.ultraThinMaterial) : AnyView(Color.black.opacity(0.001)))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
         .onAppear {
