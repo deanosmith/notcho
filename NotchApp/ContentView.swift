@@ -26,11 +26,14 @@ struct ContentView: View {
             HStack(spacing: 8) {
                 // Thumbnail
                 if let thumbnail = thumbnail {
-                    Image(nsImage: thumbnail)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 30, height: 30)
-                        .cornerRadius(6)
+                    Button(action: openCurrentMediaSource) {
+                        Image(nsImage: thumbnail)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 30, height: 30)
+                            .cornerRadius(6)
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
                 
                 ZStack {
@@ -109,8 +112,29 @@ struct ContentView: View {
                 let trackChanged = self.trackName != title
                 self.trackName = title
                 self.artistName = info["kMRMediaRemoteNowPlayingInfoArtist"] as? String ?? "Unknown Artist"
-                self.currentMusicApp = bundleID ?? "Unknown App"
+                
+                // Heuristic detection if bundleID is unavailable
+                var inferredApp: String? = nil
+                if let mediaType = info["kMRMediaRemoteNowPlayingInfoMediaType"] as? String,
+                   mediaType == "kMRMediaRemoteNowPlayingInfoTypeAudio",
+                   info["kMRMediaRemoteNowPlayingInfoTrackNumber"] != nil {
+                    inferredApp = "Spotify"
+                } else if info["kMRMediaRemoteNowPlayingInfoCurrentPlaybackDate"] != nil,
+                          (info["kMRMediaRemoteNowPlayingInfoAlbum"] as? String)?.isEmpty ?? false,
+                          info["kMRMediaRemoteNowPlayingInfoMediaType"] == nil {
+                    inferredApp = "YouTube (Chrome)"
+                }
 
+                self.currentMusicApp = bundleID ?? inferredApp ?? "Unknown App"
+                
+                if self.currentMusicApp == "Unknown App" {
+                    print("---- Now Playing Info Dump ----")
+                    for (key, value) in info {
+                        print("\(key): \(value)")
+                    }
+                    print("---- End Dump ----")
+                }
+                
                 if trackChanged, let artworkData = info["kMRMediaRemoteNowPlayingInfoArtworkData"] as? Data {
                     self.thumbnail = NSImage(data: artworkData)
                 }
@@ -169,6 +193,18 @@ struct ContentView: View {
                     print("Failed to fast-forward for \(currentMusicApp)")
                 }
             }
+        }
+    }
+    
+    func openCurrentMediaSource() {
+        guard let appName = currentMusicApp else { return }
+
+        if appName == "Spotify" {
+            NSWorkspace.shared.launchApplication("Spotify")
+        } else if appName == "YouTube (Chrome)" {
+            NSWorkspace.shared.launchApplication("Google Chrome")
+        } else {
+            print("No associated app for: \(appName)")
         }
     }
 }
