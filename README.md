@@ -3,9 +3,9 @@
 A simple notch application for macOS that allows for basic media controls; play/pause, previous/skip, seek forward/backwards.
 
 ## Media State
-<img width="311" alt="image" src="https://github.com/user-attachments/assets/25f1afef-b079-4872-bde7-8975b307a2b9" />
+<img width="323" alt="image" src="https://github.com/user-attachments/assets/62d0bc28-a480-40f7-a2d9-b6236531b68b" />
 
-## Podcast Controls
-<img width="378" alt="image" src="https://github.com/user-attachments/assets/edc2ec8f-f1b2-4aa3-819b-8f5bab5d337a" />
+## Podcast/Video Seeking
+<img width="373" alt="image" src="https://github.com/user-attachments/assets/bc95ba31-5010-4f51-8237-24f9dd553520" />
 
-_This application does not contain its main functionality due to possible future monetisation._
+_This application does not contain its main functionality due to possible future monetisation as Apple doesn't like Swift developers they can't profit off of._
