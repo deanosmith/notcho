@@ -8,4 +8,4 @@ A simple notch application for macOS that allows for basic media controls; play/
 ## Podcast/Video Seeking
 <img width="373" alt="image" src="https://github.com/user-attachments/assets/bc95ba31-5010-4f51-8237-24f9dd553520" />
 
-_This application does not contain its main functionality due to possible future monetisation as Apple doesn't like iOS developers they can't profit off of._
+_This application does not contain its main functionality due to possible future monetisation as Apple doesn't like Swift developers they can't profit off of._
