@@ -18,7 +18,7 @@ struct ContentView: View {
     
     // Dynamic width based on Seek Mode
     private var notchWidth: CGFloat {
-        useSeekMode ? 365 : 300 // On, Off
+        useSeekMode ? 358 : 300 // On, Off
     }
     
     var body: some View {
@@ -29,21 +29,17 @@ struct ContentView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 30, height: 30)
-                    .cornerRadius(8)
-            } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(1))
-                    .frame(width: 30, height: 30)
+                    .cornerRadius(6)
             }
             
             Spacer()
             
             // Playback controls (only rewind/skip when in Seek Mode)
-            HStack(spacing: 12) {
+            HStack(spacing: 6) {
                 if useSeekMode {
                     Button(action: previousOrRewind) {
                         Image(systemName: "gobackward.15")
-                            .font(.system(size: 18))
+                            .font(.system(size: 20))
                     }
                     .buttonStyle(PlainButtonStyle())
                     .disabled(currentMusicApp == nil)
@@ -52,7 +48,7 @@ struct ContentView: View {
                 // Waveform button to toggle seek mode
                 Button(action: toggleSeekMode) {
                     Image(systemName: "waveform")
-                        .font(.system(size: 22))
+                        .font(.system(size: 24))
                 }
                 .buttonStyle(PlainButtonStyle())
                 .accessibilityLabel("Toggle Seek Mode")
@@ -60,17 +56,17 @@ struct ContentView: View {
                 if useSeekMode {
                     Button(action: nextOrFastForward) {
                         Image(systemName: "goforward.15")
-                            .font(.system(size: 18))
+                            .font(.system(size: 20))
                     }
                     .buttonStyle(PlainButtonStyle())
                     .disabled(currentMusicApp == nil)
                 }
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 6)
         .frame(width: notchWidth) // Dynamic width
-        .background(Color.black.opacity(1))
+        .background(Color.black.opacity(0))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .onAppear {
             startPollingForMusicInfo()
@@ -133,7 +129,7 @@ struct ContentView: View {
     func previousOrRewind() {
         guard let currentMusicApp = currentMusicApp else { return }
         
-        let seconds = currentMusicApp == "com.spotify.client" ? -15.0 : -5.0
+        let seconds = currentMusicApp == "com.spotify.client" ? -15.0 : -10.0
         if currentMusicApp.contains("com.google.Chrome") {
             nowPlayingManager.seekInChrome(seconds: seconds) { success in
                 if !success {
@@ -153,7 +149,7 @@ struct ContentView: View {
     func nextOrFastForward() {
         guard let currentMusicApp = currentMusicApp else { return }
         
-        let seconds = currentMusicApp == "com.spotify.client" ? 15.0 : 5.0
+        let seconds = currentMusicApp == "com.spotify.client" ? 15.0 : 10.0
         if currentMusicApp.contains("com.google.Chrome") {
             nowPlayingManager.seekInChrome(seconds: seconds) { success in
                 if !success {

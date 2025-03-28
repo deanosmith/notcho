@@ -8,7 +8,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Create a borderless window
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 40),
+            contentRect: NSRect(x: 0, y: 0, width: 390, height: 40),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -24,7 +24,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let screen = NSScreen.main {
             let menuBarHeight = NSStatusBar.system.thickness
             let yPos = screen.frame.maxY - menuBarHeight
-            let xPos = (screen.frame.width - 310) / 2
+            let xPos = (screen.frame.width - 310) / 2 + 2
             window.setFrame(NSRect(x: xPos, y: yPos, width: 400, height: 23), display: true)
             window.collectionBehavior = [.stationary, .canJoinAllSpaces, .ignoresCycle]
         }
