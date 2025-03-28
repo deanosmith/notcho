@@ -12,7 +12,7 @@ struct ContentView: View {
     @State private var thumbnail: NSImage? = nil
     @State private var currentMusicApp: String? = nil
     @State private var timer: Timer? = nil
-    @State private var useSeekMode = UserDefaults.standard.bool(forKey: "useSeekMode") ?? false
+    @State private var useSeekMode = UserDefaults.standard.bool(forKey: "useSeekMode")
     @State private var showDetails = false
     
     private let nowPlayingManager = NowPlayingManager()
