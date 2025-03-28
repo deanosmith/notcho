@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var currentMusicApp: String? = nil
     @State private var timer: Timer? = nil
     @State private var useSeekMode = UserDefaults.standard.bool(forKey: "useSeekMode")
+    @State private var isExpanded = false
     
     private let nowPlayingManager = NowPlayingManager()
     
@@ -41,6 +42,9 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
+                .onTapGesture {
+                    isExpanded.toggle()
+                }
                 
                 // Playback controls (only rewind/skip when in Seek Mode)
                 HStack(spacing: 6) {
@@ -74,9 +78,9 @@ struct ContentView: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 6)
-        .frame(minHeight: 40, alignment: .top) // Set minimum height and align to top
+        .frame(height: isExpanded ? 100 : 44, alignment: .top) // Set minimum height and align to top
         .frame(width: notchWidth) // Dynamic width
-        .background(Color.black.opacity(0))
+        .background(Color.black.opacity(1))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .contentShape(Rectangle())
         .onAppear {
