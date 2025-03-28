@@ -13,7 +13,6 @@ struct ContentView: View {
     @State private var currentMusicApp: String? = nil
     @State private var timer: Timer? = nil
     @State private var useSeekMode = UserDefaults.standard.bool(forKey: "useSeekMode")
-    @State private var showDetails = false
     
     private let nowPlayingManager = NowPlayingManager()
     
@@ -39,9 +38,6 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .contentShape(Rectangle())
-                .onTapGesture {
-                    showDetails.toggle()
-                }
                 
                 // Playback controls (only rewind/skip when in Seek Mode)
                 HStack(spacing: 6) {
@@ -72,22 +68,9 @@ struct ContentView: View {
                     }
                 }
             }
-            if showDetails {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(trackName)
-                        .font(.caption)
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-                    Text(artistName)
-                        .font(.caption2)
-                        .foregroundColor(.gray)
-                        .lineLimit(1)
-                }
-                .padding(.horizontal, 6)
-            }
         }
         .padding(.horizontal, 6)
-        .padding(.vertical, showDetails ? 10 : 6)
+        .padding(.vertical, 6)
         .frame(minHeight: 40, alignment: .top) // Set minimum height and align to top
         .frame(width: notchWidth) // Dynamic width
         .background(Color.black.opacity(0))
@@ -118,19 +101,18 @@ struct ContentView: View {
                     return
                 }
                 
-                // Update track and artist info
-                if let title = info["kMRMediaRemoteNowPlayingInfoTitle"] as? String, !title.isEmpty {
-                    let trackChanged = self.trackName != title
-                    
-                    self.trackName = title
-                    self.artistName = info["kMRMediaRemoteNowPlayingInfoArtist"] as? String ?? "Unknown Artist"
-                    self.currentMusicApp = bundleID ?? "Unknown App"
-                    
-                    if trackChanged, let artworkData = info["kMRMediaRemoteNowPlayingInfoArtworkData"] as? Data {
-                        self.thumbnail = NSImage(data: artworkData)
-                    }
-                } else {
+                guard let title = info["kMRMediaRemoteNowPlayingInfoTitle"] as? String, !title.isEmpty else {
                     self.resetToIdleState()
+                    return
+                }
+                
+                let trackChanged = self.trackName != title
+                self.trackName = title
+                self.artistName = info["kMRMediaRemoteNowPlayingInfoArtist"] as? String ?? "Unknown Artist"
+                self.currentMusicApp = bundleID ?? "Unknown App"
+
+                if trackChanged, let artworkData = info["kMRMediaRemoteNowPlayingInfoArtworkData"] as? Data {
+                    self.thumbnail = NSImage(data: artworkData)
                 }
             }
         }
@@ -218,14 +200,9 @@ class NowPlayingManager {
     
     // Fetch Now Playing info
     public func fetchNowPlayingInfo(completion: @escaping ([String: Any]?, String?) -> Void) {
-        guard let getNowPlayingInfo = getNowPlayingInfo else {
-            print("Failed to load MRMediaRemoteGetNowPlayingInfo")
-            completion(nil, nil)
-            return
-        }
-        
-        guard let getBundleIdentifier = getBundleIdentifier else {
-            print("Failed to load MRNowPlayingClientGetBundleIdentifier")
+        guard let getNowPlayingInfo = getNowPlayingInfo,
+              let getBundleIdentifier = getBundleIdentifier else {
+            print("Failed to load required MediaRemote functions")
             completion(nil, nil)
             return
         }
@@ -247,16 +224,14 @@ class NowPlayingManager {
     // Seek by a relative number of seconds (for Spotify)
     public func seekBy(seconds: Double, completion: @escaping (Bool) -> Void) {
         fetchNowPlayingInfo { info, _ in
-            guard let info = info,
-                  let elapsedTime = info["kMRMediaRemoteNowPlayingInfoElapsedTime"] as? Double,
+            guard let elapsedTime = info?["kMRMediaRemoteNowPlayingInfoElapsedTime"] as? Double,
                   let setElapsedTime = self.setElapsedTime else {
-                print("Failed to fetch current playback position or load MRMediaRemoteSetElapsedTime")
+                print("Failed to fetch playback position or set elapsed time")
                 completion(false)
                 return
             }
-            
-            let newTime = max(0, elapsedTime + seconds)
-            setElapsedTime(newTime)
+
+            setElapsedTime(max(0, elapsedTime + seconds))
             completion(true)
         }
     }
